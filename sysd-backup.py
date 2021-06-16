@@ -2,13 +2,17 @@
 from zipfile import ZipFile
 from os.path import basename
 from cryptography.fernet import Fernet
-from time import strftime,localtime
 
 import argparse
 import os
 import sys
+import shutil
 
 """
+tutorials:
+    * encryption: https://www.geeksforgeeks.org/encrypt-and-decrypt-files-using-python/
+    * zipping: https://thispointer.com/python-how-to-create-a-zip-archive-from-multiple-files-or-directory/, 
+    
 todo: config-file
 """
 
@@ -18,6 +22,8 @@ def main():
     print(args)
     if args.backup != '':
         backup(args)
+    if args.restore != '':
+        restore(args)
     elif args.generate_key:
         generate_key()
 
@@ -29,7 +35,7 @@ def backup(args: argparse.Namespace):
         :param path: path to file/directory to zip
         :return: path to the created zip file
         """
-        path_zip_file: str = f'/tmp/{path.split("/")[-1]}' + strftime("_%Y_%m_%d-%H:%M", localtime()) + '.zip'
+        path_zip_file: str = f'/tmp/{path.split("/")[-1]}' + '.zip'
         zip_obj: ZipFile = ZipFile(path_zip_file, 'w')
         for folderName, subfolders, filenames in os.walk(path):
             for filename in filenames:
@@ -43,7 +49,6 @@ def backup(args: argparse.Namespace):
 
     def encrypt_file(path_file: str, path_key: str) -> str:
         """
-        src: https://www.geeksforgeeks.org/encrypt-and-decrypt-files-using-python/
         :param path_file: file to encrypt
         :param path_key: path to symmetric key
         :return: path to encrypted file
@@ -58,12 +63,44 @@ def backup(args: argparse.Namespace):
         with open(encrypted_file_name, 'wb') as encrypted_file:
             encrypted_file.write(encrypted)
         print(f"[ENCRYPT]: wrote encrypted file to {encrypted_file_name}")
+        return encrypted_file_name
+
+    def move_file_to_backup_location(path_file: str, path_backup: str):
+        shutil.move(path_file, os.path.join(path_backup, os.path.basename(path_file)))
+        print(f"[MOVE]: moved file from {path_file} to {path_backup}")
 
     (backup_src, backup_target) = args.backup.split(':')
     key_path: str = args.key
     zip_folder_path: str = zip_folder(backup_src)
     encrypt_file_path: str = encrypt_file(zip_folder_path, key_path)
+    move_file_to_backup_location(encrypt_file_path, backup_target)
+    print("[COMPLETE]: backup completed")
 
+
+def restore(args: argparse.Namespace):
+    def unzip_folder(zip_path: str, zip_target: str):
+        with ZipFile(zip_path, 'r') as zip_obj:
+            zip_obj.extractall(zip_target)
+        print(f"[UNZIP] unzipping {zip_path} to {zip_target}")
+
+    def decrypt_file(file_path: str, key_path: str) -> str:
+        decrypted_zip_path = '/tmp/sysd-backup.zip'
+        with open(file_path, 'rb') as enc_file:
+            encrypted = enc_file.read()
+        with open(key_path, 'rb') as keyfile:
+            key = keyfile.read()
+        fernet: Fernet = Fernet(key)
+        decrypted = fernet.decrypt(encrypted)
+        with open(decrypted_zip_path, 'wb') as dec_file:
+            dec_file.write(decrypted)
+        print(f"[DECRYPT] decrypted {file_path} with key at {key_path}")
+        return decrypted_zip_path
+
+    (restore_src, restore_target) = args.restore.split(':')
+    print(f"[RESTORE] restoring {restore_src} into {restore_target}")
+    key_path: str = args.key
+    decrypted_zip = decrypt_file(restore_src, key_path)
+    unzip_folder(decrypted_zip, restore_target)
 
 
 def generate_key():
@@ -80,20 +117,22 @@ def generate_key():
 
     print(f"[KEY_GEN]: saved new keyfile with name {key_name}")
 
+
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='simple, robust and encrypting backup tool')
     parser.add_argument('--backup', metavar='backup-src:backup-dest', type=str, nargs='?', default='', help='source-path:target-path' )
+    parser.add_argument('--restore', metavar='backup-path:restore-dest', type=str, nargs='?', default='', help='backup-path:restore-path' )
     parser.add_argument('--key', metavar='key', type=str, nargs='?', help='path to symmetrical key')
     parser.add_argument('--generate-key',  action='store', nargs='?', help='generates a symmetric key at cwd')
     args = parser.parse_args()
 
-    if args.backup != '':
+    if args.backup != '' or args.restore != '':
         try:
-            assert ':' in args.backup
-            assert os.path.exists(args.backup.split(':')[0])
+            assert ':' in args.backup or ':' in args.restore
+            assert os.path.exists(args.backup.split(':')[0]) or os.path.exists(args.restore.split(':')[0])
             assert args.key is not None
         except AssertionError:
-            print("[ERROR]: problem with parameters for backup", file=sys.stderr)
+            print("[ERROR]: problem with parameters for backup/restore", file=sys.stderr)
             sys.exit(1)
 
     return args
