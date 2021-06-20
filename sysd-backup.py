@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-from zipfile import ZipFile
-from os.path import basename
+
+import tarfile
 from cryptography.fernet import Fernet
 
 import argparse
@@ -35,17 +35,16 @@ def backup(args: argparse.Namespace):
         :param path: path to file/directory to zip
         :return: path to the created zip file
         """
-        path_zip_file: str = f'/tmp/{path.split("/")[-1]}' + '.zip'
-        zip_obj: ZipFile = ZipFile(path_zip_file, 'w')
-        for folderName, subfolders, filenames in os.walk(path):
-            for filename in filenames:
-                # create complete filepath of file in directory
-                file_path = os.path.join(folderName, filename)
-                # Add file to zip
-                zip_obj.write(file_path, basename(file_path))
-        zip_obj.close()
-        print(f"[BACKUP]: created zip-archive at {path_zip_file}")
-        return path_zip_file
+        tar_file: str = f'/tmp/{path.split("/")[-1]}.tar.gz'
+        basedir: str = os.path.dirname(path)
+        file_name: str = os.path.basename(path)
+        original_dir: str = os.getcwd()
+        os.chdir(basedir)
+        with tarfile.open(tar_file, "w:gz") as tar:
+            tar.add(file_name)
+        print(f"[BACKUP]: created zip-archive at {tar_file}")
+        os.chdir(original_dir)
+        return tar_file
 
     def encrypt_file(path_file: str, path_key: str) -> str:
         """
@@ -79,8 +78,9 @@ def backup(args: argparse.Namespace):
 
 def restore(args: argparse.Namespace):
     def unzip_folder(zip_path: str, zip_target: str):
-        with ZipFile(zip_path, 'r') as zip_obj:
-            zip_obj.extractall(zip_target)
+        tar = tarfile.open(zip_path)
+        os.chdir(zip_target)
+        tar.extractall()
         print(f"[UNZIP] unzipping {zip_path} to {zip_target}")
 
     def decrypt_file(file_path: str, key_path: str) -> str:

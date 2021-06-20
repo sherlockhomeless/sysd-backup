@@ -1,0 +1,7 @@
+[Unit]
+Description=Performes the backup of radicale data folder
+
+[Service]
+Type=Simple
+WorkingDirectory=/home/ml/projects/sysd-backup
+Exec=
