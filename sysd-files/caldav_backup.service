@@ -1,0 +1,10 @@
+[Unit]
+Description=Performes the backup of radicale data folder
+
+[Service]
+Type=simple
+WorkingDirectory=/home/ml/projects/sysd-backup
+ExecStart=python3 /home/ml/projects/sysd-backup/sysd-backup.py --backup=/home/ml/radicale:/home/ml/Dropbox/caldav_backup/ --key=filekey.key
+
+[Install]
+WantedBy=multi-user.target

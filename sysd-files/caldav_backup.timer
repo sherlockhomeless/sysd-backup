@@ -1,0 +1,11 @@
+# https://linuxconfig.org/how-to-schedule-tasks-with-systemd-timers-in-linux
+
+[Unit]
+Description= Triggers daily backup of radicale folder
+
+[Timer]
+OnUnitActiveSec=24h
+Persistent=true
+Unit=caldav_backup.service
+[Install]
+WantedBy=timers.target

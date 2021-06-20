@@ -11,9 +11,9 @@ import shutil
 """
 tutorials:
     * encryption: https://www.geeksforgeeks.org/encrypt-and-decrypt-files-using-python/
-    * zipping: https://thispointer.com/python-how-to-create-a-zip-archive-from-multiple-files-or-directory/, 
-    
-todo: config-file
+    * zipping: https://thispointer.com/python-how-to-create-a-zip-archive-from-multiple-files-or-directory/,
+
+todo: config/env integration for parameter to not have to change unit-files if path changes
 """
 
 
